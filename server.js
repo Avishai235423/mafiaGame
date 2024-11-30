@@ -1,18 +1,19 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const port = process.env.PORT || 3000;
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+app.use(express.static(__dirname + '/'));
+
 let currentPhase = 'night'; // 'day' or 'night'
 let players = [];
-let roles = [];
 let announcer = null; // To store the announcer's websocket
 
 const MAFIA_COUNT = 1; // You can adjust the number of mafia players here
-
 
 wss.on('connection', (ws) => {
     ws.on('message', (message) => {
@@ -28,16 +29,12 @@ wss.on('connection', (ws) => {
                     players.push({ id: data.id, ws, status: 'alive', vote: null });
                     // Notify the announcer about the new player
                     notifyAnnouncer({ type: 'playerJoined', playerId: data.id });
-                    /*if (players.length === 10) { // Start game with 10 players
-                        assignRoles();
-                        startGame();
-                    }*/
                 }
                 break;
             case 'vote':
                 handleVote(data);
                 break;
-			case 'start':
+            case 'start':
                 assignRoles();
                 startGame();
                 break;
@@ -297,6 +294,6 @@ function endGame(message) {
     console.log(JSON.stringify({ type: 'end', message }));
 }
 
-server.listen(3000, () => {
-    console.log('Server is listening on port 3000');
+server.listen(port, () => {
+    console.log(`Server is listening on port ${port}`);
 });
