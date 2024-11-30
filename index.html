@@ -79,99 +79,19 @@
         .hidden {
             display: none;
         }
-		
-		
-		/* styles.css */
-
-/* Table Container */
-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background: rgba(25, 25, 35, 0.95);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 
-        0 0 25px rgba(0, 0, 0, 0.2),
-        0 0 15px rgba(76, 175, 80, 0.2);
-    transition: all 0.3s ease;
-    animation: tableFloat 3s ease-in-out infinite;
-}
-
-/* Header Cells */
-th {
-    background: linear-gradient(45deg, #2c3e50, #3498db);
-    color: #fff;
-    padding: 15px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    border-bottom: 3px solid rgba(76, 175, 80, 0.5);
-    position: relative;
-    overflow: hidden;
-}
-
-/* Table Cells */
-td {
-    padding: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
-    transition: all 0.3s ease;
-}
-
-/* Row Styling */
-tr {
-    transition: all 0.3s ease;
-}
-
-tr:nth-child(even) {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-tr:hover {
-    background: rgba(76, 175, 80, 0.1);
-    transform: translateX(5px);
-    box-shadow: -5px 0 15px rgba(76, 175, 80, 0.2);
-}
-
-/* First Column Special Styling */
-td:first-child, th:first-child {
-    background: linear-gradient(45deg, #c0392b, #e74c3c);
-    color: white;
-    font-weight: bold;
-    position: relative;
-}
-
-/* Hover Effects */
-td:hover {
-    background: rgba(76, 175, 80, 0.2);
-    transform: scale(1.02);
-}
-
-/* Animations */
-@keyframes tableFloat {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-10px);
-    }
-}
-
-/* Add Icons (using pseudo-elements) */
-th::before {
-    content: '🎮';
-    margin-right: 8px;
-    font-size: 1.2em;
-    opacity: 0.8;
-}
-
-td:first-child::before {
-    content: '⚡';
-    margin-right: 8px;
-    font-size: 1.1em;
-}
+        
+        /* Additional Styles */
+        #player-status p {
+            font-size: 1.2em;
+            margin: 5px 0;
+            text-align: center;
+        }
+        #announcer-player-list div {
+            margin: 10px 0;
+        }
+        #announcer-player-list button {
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -182,7 +102,7 @@ td:first-child::before {
     <div id="game">
         <h2 id="phase"></h2>
         <div id="messages"></div>
-		<!-- MANAGER Section -->
+        <!-- MANAGER Section -->
         <div id="manager-section" class="hidden">
             <button id="start-button">Start Game</button>
         </div>
@@ -190,16 +110,21 @@ td:first-child::before {
         <div id="announcer-section" class="hidden">
             <h3>Vote History</h3>
             <div id="vote-history"></div>
+            <h3>Player Management</h3>
+            <div id="announcer-player-list"></div>
+            <button id="start-vote-button" class="hidden">Start Vote</button>
         </div>
 
         <!-- Player Section -->
         <div id="player-section" class="hidden">
+            <div id="player-status"></div>
             <div id="player-list"></div>
         </div>
     </div>
 
     <script>
-	
+    
+const voteHistoryDiv = document.getElementById('vote-history');
 
 class VotingTable {
     constructor(players) {
@@ -208,7 +133,7 @@ class VotingTable {
         this.currentCycle = [];
         this.phase = 'day'; // 'day' or 'night'
         this.tableElement = document.createElement('table');
-        document.body.appendChild(this.tableElement);
+        voteHistoryDiv.appendChild(this.tableElement);
         this.renderTable(); // Initial render
     }
 
@@ -236,11 +161,11 @@ class VotingTable {
         this.currentCycle = [];
         this.renderTable(); // Render after finalizing cycle
     }
-	
-	updateUsers(players){
-		this.players = players;
+    
+    updateUsers(players){
+        this.players = players;
         this.renderTable(); // Initial render
-	}
+    }
 
     renderTable() {
         this.tableElement.innerHTML = ''; // Clear existing table content
@@ -276,7 +201,7 @@ class VotingTable {
 }
 
 
-        const ws = new WebSocket('ws://localhost:3000');
+        const ws = new WebSocket('/');
         const joinButton = document.getElementById('join-button');
         const startButton = document.getElementById('start-button');
         const joinContainer = document.getElementById('join-container');
@@ -286,20 +211,26 @@ class VotingTable {
 
         const announcerSection = document.getElementById('announcer-section');
         const managerSection = document.getElementById('manager-section');
-        const voteHistoryDiv = document.getElementById('vote-history');
 
         const playerSection = document.getElementById('player-section');
         const playerListDiv = document.getElementById('player-list');
-		let votingTable;
+        const playerStatusDiv = document.getElementById('player-status');
+        const announcerPlayerList = document.getElementById('announcer-player-list');
+        const startVoteButton = document.getElementById('start-vote-button');
+        let votingTable;
         let playerId;
         let role;
         let isAnnouncer = false;
         let players = [];
         let hasVoted = false;
         let isEliminated = false;
-		let initPlayers = [];
-		votingTable = new VotingTable(initPlayers);
-		
+        let gameStarted = false;
+        let votingEnabled = false;
+        let initPlayers = [];
+        let currentPhase = '';
+
+        votingTable = new VotingTable(initPlayers);
+
         joinButton.addEventListener('click', () => {
             playerId = prompt('Enter your player ID:');
             if (playerId) {
@@ -309,8 +240,13 @@ class VotingTable {
         });
 
         startButton.addEventListener('click', () => {
-			ws.send(JSON.stringify({ type: 'start', id: playerId }));
-			startButton.style.display = 'none';
+            ws.send(JSON.stringify({ type: 'start', id: playerId }));
+            startButton.style.display = 'none';
+        });
+
+        startVoteButton.addEventListener('click', () => {
+            ws.send(JSON.stringify({ type: 'startVote' }));
+            startVoteButton.classList.add('hidden');
         });
 
         ws.onopen = () => {
@@ -327,48 +263,68 @@ class VotingTable {
                     managerSection.classList.remove('hidden');
                     addMessage('You are the announcer.');
                     break;
+                case 'updatePlayers':
+                    if (isAnnouncer) {
+                        initPlayers = data.players.map(p => p.id);
+                        votingTable.updateUsers(initPlayers);
+                        updateAnnouncerPlayerList(data.players);
+                    }
+                    break;
                 case 'playerJoined':
                     if (isAnnouncer) {
                         addMessage(`Player joined: ${data.playerId}`);
-						initPlayers.push(data.playerId);
-						votingTable.updateUsers(initPlayers);
+                        initPlayers.push(data.playerId);
+                        votingTable.updateUsers(initPlayers);
                     }
                     break;
-				case 'gameStarted':
-
-					break;
-				case 'role':
+                case 'gameStarted':
+                    break;
+                case 'role':
                     role = data.role;
                     gameDiv.style.display = 'block';
                     playerSection.classList.remove('hidden');
                     addMessage(`Your role is: ${role}`);
+                    updatePlayerStatus();
                     break;
                 case 'start':
+                    gameStarted = true;
                     addMessage(data.message);
                     break;
                 case 'night':
                     updatePhase('Night Phase');
                     hasVoted = false;
+                    votingEnabled = true; // Mafia can vote during night
                     if (role === 'mafia' && !isEliminated) {
                         // Mafia player: Show voting buttons
                         updatePlayerList(data.players);
                         addMessage('Choose a victim.');
                     } else {
                         // Civilian players: Waiting
-                        updatePlayerList(data.players);
+                        updatePlayerList([]); // No voting options
                         addMessage('Waiting for mafia to act...');
                     }
                     break;
                 case 'day':
                     updatePhase('Day Phase');
                     hasVoted = false;
+                    votingEnabled = false;
                     if (!isEliminated) {
                         updatePlayerList(data.players);
-                        addMessage('Discuss and vote for a player to eliminate.');
+                        addMessage('Discuss and wait for the announcer to start the vote.');
                     } else {
                         updatePlayerList([]); // No voting options
                         addMessage('You are eliminated.');
                     }
+                    if (isAnnouncer) {
+                        // Show the start vote button
+                        startVoteButton.classList.remove('hidden');
+                        addMessage('Click "Start Vote" when ready to begin voting.');
+                    }
+                    break;
+                case 'votingStarted':
+                    votingEnabled = true;
+                    addMessage('Voting has started. Please cast your vote.');
+                    updatePlayerList(data.players);
                     break;
                 case 'nightResult':
                     addMessage(data.message);
@@ -377,6 +333,7 @@ class VotingTable {
                     isEliminated = true;
                     addMessage('You have been eliminated.');
                     disableAllButtons();
+                    updatePlayerStatus();
                     break;
                 case 'playerVoted':
                     if (isAnnouncer) {
@@ -391,13 +348,19 @@ class VotingTable {
                 case 'playerEliminated':
                     if (isAnnouncer) {
                         addMessage(`Player ${data.playerId} was eliminated during ${data.phase} phase.`);
-						votingTable.finalizeCycle(data.playerId);
+                        votingTable.finalizeCycle(data.playerId);
+                        // Update the player list
+                        ws.send(JSON.stringify({ type: 'requestPlayersUpdate' }));
                     }
+                    break;
+                case 'removed':
+                    addMessage('You have been removed from the game.');
+                    ws.close();
                     break;
                 case 'tie':
                     if (isAnnouncer) {
                         addMessage(`Tie during ${data.phase} phase: ${data.message}`);
-						votingTable.finalizeCycle('tie');
+                        votingTable.finalizeCycle('tie');
                     }
                     break;
                 case 'end':
@@ -415,7 +378,9 @@ class VotingTable {
         }
 
         function updatePhase(phase) {
+            currentPhase = phase;
             phaseHeader.textContent = phase;
+            updatePlayerStatus();
         }
 
         function updatePlayerList(availablePlayers) {
@@ -424,12 +389,12 @@ class VotingTable {
             availablePlayers.forEach(player => {
                 const button = document.createElement('button');
                 button.textContent = player.id;
-                if (player.status === 'eliminated' || hasVoted || isEliminated) {
+                if (player.status === 'eliminated' || hasVoted || isEliminated || !votingEnabled) {
                     button.disabled = true;
                 } else {
                     button.disabled = false;
                     button.addEventListener('click', () => {
-                        if (!hasVoted) {
+                        if (!hasVoted && votingEnabled) {
                             ws.send(JSON.stringify({ type: 'vote', id: playerId, vote: player.id }));
                             hasVoted = true;
                             disableAllButtons();
@@ -448,12 +413,52 @@ class VotingTable {
         }
 
         function updateVoteHistory(data) {
-			votingTable.updateTable(data.phase, data.playerId, data.vote);
+            votingTable.updateTable(data.phase, data.playerId, data.vote);
         }
 
         function updateVoteCounts(data) {
             // Optionally, update vote counts for the announcer
             // This can be customized based on your requirements
+        }
+
+        function updateAnnouncerPlayerList(players) {
+            announcerPlayerList.innerHTML = '';
+            players.forEach(player => {
+                const playerDiv = document.createElement('div');
+                playerDiv.textContent = `Player ID: ${player.id}, Status: ${player.status}${player.role ? ', Role: ' + player.role : ''}`;
+
+                if (gameStarted) {
+                    // During the game, provide 'Eliminate' button
+                    const eliminateButton = document.createElement('button');
+                    eliminateButton.textContent = 'Eliminate';
+                    eliminateButton.addEventListener('click', () => {
+                        if (confirm(`Are you sure you want to eliminate ${player.id}?`)) {
+                            ws.send(JSON.stringify({ type: 'eliminatePlayer', playerId: player.id }));
+                        }
+                    });
+                    playerDiv.appendChild(eliminateButton);
+                } else {
+                    // Before the game starts, provide 'Remove' button
+                    const removeButton = document.createElement('button');
+                    removeButton.textContent = 'Remove';
+                    removeButton.addEventListener('click', () => {
+                        if (confirm(`Are you sure you want to remove ${player.id}?`)) {
+                            ws.send(JSON.stringify({ type: 'removePlayer', playerId: player.id }));
+                        }
+                    });
+                    playerDiv.appendChild(removeButton);
+                }
+
+                announcerPlayerList.appendChild(playerDiv);
+            });
+        }
+
+        function updatePlayerStatus() {
+            playerStatusDiv.innerHTML = `
+                <p>Role: ${role}</p>
+                <p>Status: ${isEliminated ? 'Eliminated' : 'Alive'}</p>
+                <p>Phase: ${currentPhase}</p>
+            `;
         }
 
         ws.onclose = () => {
